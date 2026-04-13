@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 200" width="600" height="200">
+  <!-- ChainPilot Logo - Horizontal Dark Variant -->
+  
+  <!-- Background -->
+  <rect width="600" height="200" fill="#0A1628" rx="12"/>
+  
+  <!-- Logo mark -->
+  <circle cx="100" cy="100" r="55" fill="none" stroke="#1D9E75" stroke-width="1.2"/>
+  
+  <!-- Chain links -->
+  <rect x="74" y="95" width="24" height="10" rx="5" fill="none" stroke="#1D9E75" stroke-width="1.2"/>
+  <rect x="102" y="95" width="24" height="10" rx="5" fill="none" stroke="#1D9E75" stroke-width="1.2"/>
+  <line x1="98" y1="100" x2="102" y2="100" stroke="#1D9E75" stroke-width="1.2" stroke-linecap="round"/>
+  
+  <!-- North needle -->
+  <polygon points="100,52 92,96 100,90 108,96" fill="#1D9E75"/>
+  <!-- South needle -->
+  <polygon points="100,148 92,104 100,110 108,104" fill="#888780" opacity="0.35"/>
+  <!-- Center dot -->
+  <circle cx="100" cy="100" r="4" fill="#1D9E75"/>
+  <circle cx="100" cy="100" r="2" fill="#0A1628"/>
+  
+  <!-- Wordmark -->
+  <text x="185" y="92" font-family="Helvetica, Arial, sans-serif" font-size="36" font-weight="bold" fill="white" letter-spacing="4">CHAINPILOT</text>
+  
+  <!-- Tagline -->
+  <text x="185" y="120" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#5DCAA5" letter-spacing="2">DISCOVER  ·  VALIDATE  ·  TRADE  ·  GUARD</text>
+  
+  <!-- Version badge -->
+  <rect x="185" y="135" width="56" height="18" rx="9" fill="none" stroke="#1D9E75" stroke-width="0.5" opacity="0.5"/>
+  <text x="213" y="148" text-anchor="middle" font-family="monospace" font-size="8" fill="#5DCAA5" opacity="0.7">v3.2.0</text>
+</svg>

@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChainPilot — AI-Powered On-Chain Trading Copilot</title>
+  <meta name="description" content="Discover, validate, trade, and guard your on-chain positions with AI-powered safety scoring. Multi-chain support for Solana, BSC, ETH, and Base.">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            navy: '#0A1628',
+            'navy-light': '#0F1F38',
+            'navy-lighter': '#152847',
+            teal: { DEFAULT: '#1D9E75', light: '#E1F5EE', mid: '#5DCAA5', dark: '#085041' },
+            charcoal: '#2C2C2A',
+            muted: '#888780',
+            cream: '#F1EFE8',
+            safe: '#639922',
+            warning: '#EF9F27',
+            danger: '#E24B4A',
+          },
+          fontFamily: {
+            display: ['Outfit', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Courier', 'monospace'],
+            body: ['Helvetica', 'Arial', 'sans-serif'],
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    /* ── Base ── */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { background: #0A1628; }
+    body { font-family: 'Helvetica', 'Arial', sans-serif; color: #e2e8f0; background: #0A1628; overflow-x: hidden; }
+
+    /* ── Dot grid background ── */
+    .dot-grid {
+      background-image: radial-gradient(circle, rgba(29,158,117,0.08) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+
+    /* ── Glow effects ── */
+    .glow-teal { box-shadow: 0 0 40px rgba(29,158,117,0.15), 0 0 80px rgba(29,158,117,0.05); }
+    .glow-teal-strong { box-shadow: 0 0 60px rgba(29,158,117,0.25), 0 0 120px rgba(29,158,117,0.08); }
+    .border-glow { border: 1px solid rgba(29,158,117,0.2); }
+    .border-glow-hover:hover { border-color: rgba(29,158,117,0.5); }
+
+    /* ── Card surfaces ── */
+    .surface { background: rgba(15,31,56,0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+    .surface-elevated { background: rgba(15,31,56,0.8); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+
+    /* ── Compass animation ── */
+    @keyframes compass-spin { 0%{transform:rotate(0deg)}100%{transform:rotate(360deg)} }
+    @keyframes needle-settle { 0%{transform:rotate(-15deg)}30%{transform:rotate(8deg)}60%{transform:rotate(-3deg)}100%{transform:rotate(0deg)} }
+    .compass-ring { animation: compass-spin 60s linear infinite; }
+    .needle-settle { animation: needle-settle 2s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+
+    /* ── Pulse for live indicator ── */
+    @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(1.5)} }
+    .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+
+    /* ── Score ring animation ── */
+    @keyframes score-fill { from { stroke-dashoffset: 251; } }
+    .score-ring-animated { animation: score-fill 1.5s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+
+    /* ── Scroll reveal ── */
+    .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.7s cubic-bezier(0.22,1,0.36,1), transform 0.7s cubic-bezier(0.22,1,0.36,1); }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+    .reveal-delay-1 { transition-delay: 0.1s; }
+    .reveal-delay-2 { transition-delay: 0.2s; }
+    .reveal-delay-3 { transition-delay: 0.3s; }
+    .reveal-delay-4 { transition-delay: 0.4s; }
+    .reveal-delay-5 { transition-delay: 0.5s; }
+
+    /* ── Gradient text ── */
+    .text-gradient { background: linear-gradient(135deg, #5DCAA5 0%, #1D9E75 50%, #085041 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+    /* ── Button hover ── */
+    .btn-primary { background: #1D9E75; transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s ease; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(29,158,117,0.35); }
+    .btn-primary:focus-visible { outline: 2px solid #5DCAA5; outline-offset: 2px; }
+    .btn-primary:active { transform: translateY(0); }
+
+    .btn-outline { border: 1px solid rgba(29,158,117,0.4); transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), border-color 0.2s ease, background 0.2s ease; }
+    .btn-outline:hover { transform: translateY(-2px); border-color: #1D9E75; background: rgba(29,158,117,0.08); }
+    .btn-outline:focus-visible { outline: 2px solid #5DCAA5; outline-offset: 2px; }
+    .btn-outline:active { transform: translateY(0); }
+
+    /* ── Feature card hover ── */
+    .feature-card { transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s ease, border-color 0.3s ease; }
+    .feature-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(29,158,117,0.12); border-color: rgba(29,158,117,0.4); }
+
+    /* ── Ticker ── */
+    @keyframes ticker-scroll { 0%{transform:translateX(0)}100%{transform:translateX(-50%)} }
+    .ticker-track { animation: ticker-scroll 30s linear infinite; }
+    .ticker-track:hover { animation-play-state: paused; }
+
+    /* ── Score widget states ── */
+    .score-safe { color: #639922; }
+    .score-moderate { color: #EF9F27; }
+    .score-danger { color: #E24B4A; }
+    .ring-safe { stroke: #639922; }
+    .ring-moderate { stroke: #EF9F27; }
+    .ring-danger { stroke: #E24B4A; }
+
+    /* ── Input styles ── */
+    input[type="text"], select {
+      background: rgba(10,22,40,0.8);
+      border: 1px solid rgba(29,158,117,0.2);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    input[type="text"]:focus, select:focus {
+      border-color: #1D9E75;
+      box-shadow: 0 0 0 3px rgba(29,158,117,0.15);
+      outline: none;
+    }
+
+    /* ── Grain overlay ── */
+    .grain::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0A1628; }
+    ::-webkit-scrollbar-thumb { background: #1D9E75; border-radius: 3px; }
+  </style>
+</head>
+<body class="grain">
+
+  <!-- ══════════════════════ NAV ══════════════════════ -->
+  <nav class="fixed top-0 left-0 right-0 z-50 surface-elevated border-b border-white/5">
+    <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+      <!-- Logo -->
+      <a href="#" class="flex items-center gap-3 group">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" class="w-9 h-9">
+          <circle cx="200" cy="175" r="95" fill="none" stroke="#1D9E75" stroke-width="3"/>
+          <rect x="155" y="168" width="36" height="14" rx="7" fill="none" stroke="#1D9E75" stroke-width="2.5"/>
+          <rect x="209" y="168" width="36" height="14" rx="7" fill="none" stroke="#1D9E75" stroke-width="2.5"/>
+          <line x1="191" y1="175" x2="209" y2="175" stroke="#1D9E75" stroke-width="2.5" stroke-linecap="round"/>
+          <polygon points="200,90 188,170 200,162 212,170" fill="#1D9E75"/>
+          <polygon points="200,260 188,180 200,188 212,180" fill="#888780" opacity="0.4"/>
+          <circle cx="200" cy="175" r="6" fill="#1D9E75"/>
+          <circle cx="200" cy="175" r="3" fill="#0A1628"/>
+        </svg>
+        <span class="font-display font-bold text-lg tracking-wider text-white">CHAINPILOT</span>
+      </a>
+      <!-- Nav links -->
+      <div class="hidden md:flex items-center gap-8">
+        <a href="#features" class="text-sm text-muted hover:text-teal-mid transition-colors duration-200">Features</a>
+        <a href="#safety-check" class="text-sm text-muted hover:text-teal-mid transition-colors duration-200">Safety Check</a>
+        <a href="#how-it-works" class="text-sm text-muted hover:text-teal-mid transition-colors duration-200">How It Works</a>
+        <a href="https://t.me/ChainPilot_bot" target="_blank" rel="noopener" class="btn-primary px-5 py-2 rounded-lg text-sm font-display font-semibold text-white">
+          Launch on Telegram
+        </a>
+      </div>
+      <!-- Mobile menu button -->
+      <button onclick="document.getElementById('mobile-menu').classList.toggle('hidden')" class="md:hidden text-white p-2" aria-label="Toggle menu">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+    </div>
+    <!-- Mobile menu -->
+    <div id="mobile-menu" class="hidden md:hidden surface-elevated border-t border-white/5 px-6 py-4 space-y-3">
+      <a href="#features" class="block text-sm text-muted hover:text-teal-mid">Features</a>
+      <a href="#safety-check" class="block text-sm text-muted hover:text-teal-mid">Safety Check</a>
+      <a href="#how-it-works" class="block text-sm text-muted hover:text-teal-mid">How It Works</a>
+      <a href="https://t.me/ChainPilot_bot" target="_blank" rel="noopener" class="block btn-primary px-5 py-2 rounded-lg text-sm font-display font-semibold text-white text-center mt-2">Launch on Telegram</a>
+    </div>
+  </nav>
+
+
+  <!-- ══════════════════════ HERO ══════════════════════ -->
+  <section class="relative min-h-screen flex items-center justify-center pt-16 dot-grid overflow-hidden">
+    <!-- Background radial gradients -->
+    <div class="absolute inset-0 pointer-events-none">
+      <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full" style="background: radial-gradient(circle, rgba(29,158,117,0.08) 0%, transparent 70%);"></div>
+      <div class="absolute bottom-0 left-0 w-[600px] h-[600px] rounded-full" style="background: radial-gradient(circle, rgba(8,80,65,0.12) 0%, transparent 70%);"></div>
+    </div>
+
+    <!-- Large compass watermark -->
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-[0.03]">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" class="w-[700px] h-[700px] compass-ring">
+        <circle cx="200" cy="200" r="180" fill="none" stroke="#1D9E75" stroke-width="0.5"/>
+        <circle cx="200" cy="200" r="160" fill="none" stroke="#1D9E75" stroke-width="0.3"/>
+        <circle cx="200" cy="200" r="140" fill="none" stroke="#1D9E75" stroke-width="0.3"/>
+        <line x1="200" y1="10" x2="200" y2="390" stroke="#1D9E75" stroke-width="0.3"/>
+        <line x1="10" y1="200" x2="390" y2="200" stroke="#1D9E75" stroke-width="0.3"/>
+      </svg>
+    </div>
+
+    <div class="relative z-10 max-w-5xl mx-auto px-6 text-center">
+      <!-- Live badge -->
+      <div class="reveal inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-teal/20 surface mb-8">
+        <span class="w-2 h-2 rounded-full bg-teal pulse-dot"></span>
+        <span class="text-xs font-mono text-teal-mid tracking-wide">LIVE ON SOLANA &middot; BSC &middot; ETH &middot; BASE</span>
+      </div>
+
+      <!-- Headline -->
+      <h1 class="reveal reveal-delay-1 font-display font-900 text-5xl sm:text-6xl lg:text-7xl leading-[1.05] tracking-tight text-white mb-6">
+        Your AI-Powered<br>
+        <span class="text-gradient">On-Chain Trading</span><br>
+        Copilot
+      </h1>
+
+      <!-- Subtitle -->
+      <p class="reveal reveal-delay-2 font-body text-lg sm:text-xl text-muted max-w-2xl mx-auto mb-10 leading-relaxed">
+        Discover tokens. Validate safety. Execute trades. Guard positions.<br class="hidden sm:block">
+        One conversation. Complete trading lifecycle.
+      </p>
+
+      <!-- CTAs -->
+      <div class="reveal reveal-delay-3 flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
+        <a href="https://t.me/ChainPilot_bot" target="_blank" rel="noopener" class="btn-primary px-8 py-3.5 rounded-xl font-display font-semibold text-white flex items-center gap-2.5 text-base">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+          Launch on Telegram
+        </a>
+        <a href="#safety-check" class="btn-outline px-8 py-3.5 rounded-xl font-display font-semibold text-teal-mid flex items-center gap-2.5 text-base">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          Check Token Safety
+        </a>
+      </div>
+
+      <!-- Stats row -->
+      <div class="reveal reveal-delay-4 grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-3xl mx-auto">
+        <div class="surface border-glow rounded-xl px-4 py-3 text-center">
+          <div class="font-mono font-bold text-2xl text-white">4</div>
+          <div class="text-xs text-muted mt-0.5">Chains Supported</div>
+        </div>
+        <div class="surface border-glow rounded-xl px-4 py-3 text-center">
+          <div class="font-mono font-bold text-2xl text-white">90+</div>
+          <div class="text-xs text-muted mt-0.5">Launchpads Tracked</div>
+        </div>
+        <div class="surface border-glow rounded-xl px-4 py-3 text-center">
+          <div class="font-mono font-bold text-2xl text-white">9</div>
+          <div class="text-xs text-muted mt-0.5">Guardian Tasks</div>
+        </div>
+        <div class="surface border-glow rounded-xl px-4 py-3 text-center">
+          <div class="font-mono font-bold text-2xl text-teal-mid">&lt;1s</div>
+          <div class="text-xs text-muted mt-0.5">Alert Latency</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scroll indicator -->
+    <div class="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-40">
+      <span class="text-xs font-mono text-muted tracking-widest">SCROLL</span>
+      <svg class="w-4 h-4 text-muted animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7"/></svg>
+    </div>
+  </section>
+
+
+  <!-- ══════════════════════ FEATURES ══════════════════════ -->
+  <section id="features" class="relative py-24 sm:py-32">
+    <div class="max-w-7xl mx-auto px-6">
+      <!-- Section header -->
+      <div class="text-center mb-16">
+        <span class="reveal font-mono text-xs tracking-[0.3em] text-teal uppercase">Capabilities</span>
+        <h2 class="reveal reveal-delay-1 font-display font-800 text-3xl sm:text-4xl lg:text-5xl text-white mt-3">
+          Built for <span class="text-gradient">Systematic Edge</span>
+        </h2>
+        <p class="reveal reveal-delay-2 text-muted mt-4 max-w-xl mx-auto">
+          Every feature works together. Safety scoring gates your trades. Guardian monitors your positions. Alerts fire in under a second.
+        </p>
+      </div>
+
+      <!-- Feature grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+
+        <!-- Feature 1: Safety Scoring -->
+        <div class="reveal feature-card surface border-glow rounded-2xl p-6 group">
+          <div class="w-11 h-11 rounded-xl bg-teal/10 flex items-center justify-center mb-4 group-hover:bg-teal/20 transition-colors duration-300">
+            <svg class="w-5 h-5 text-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          </div>
+          <h3 class="font-display font-bold text-lg text-white mb-2">Safety Scoring</h3>
+          <p class="text-sm text-muted leading-relaxed">Composite 0-100 safety score computed from contract risk, holder concentration, liquidity depth, and honeypot detection. Trades below 20 are refused outright.</p>
+          <div class="flex gap-2 mt-4">
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-safe/10 text-safe">70-100 SAFE</span>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-warning/10 text-warning">40-69 WARN</span>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-danger/10 text-danger">0-39 REFUSE</span>
+          </div>
+        </div>
+
+        <!-- Feature 2: Copy Trading -->
+        <div class="reveal reveal-delay-1 feature-card surface border-glow rounded-2xl p-6 group">
+          <div class="w-11 h-11 rounded-xl bg-teal/10 flex items-center justify-center mb-4 group-hover:bg-teal/20 transition-colors duration-300">
+            <svg class="w-5 h-5 text-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          </div>
+          <h3 class="font-display font-bold text-lg text-white mb-2">Smart Money Copy Trading</h3>
+          <p class="text-sm text-muted leading-relaxed">Track elite wallets. Detect new buys every 15 minutes. Safety-gate before mirroring. One command to copy a trade with automatic TP/SL protection.</p>
+          <div class="mt-4 font-mono text-[11px] text-teal-mid/60 bg-navy/50 rounded-lg px-3 py-2">
+            COPY 0.01 SOL → safety check → execute
+          </div>
+        </div>
+
+        <!-- Feature 3: Launch Scanner -->
+        <div class="reveal reveal-delay-2 feature-card surface border-glow rounded-2xl p-6 group">
+          <div class="w-11 h-11 rounded-xl bg-teal/10 flex items-center justify-center mb-4 group-hover:bg-teal/20 transition-colors duration-300">
+            <svg class="w-5 h-5 text-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          </div>
+          <h3 class="font-display font-bold text-lg text-white mb-2">Token Launch Scanner</h3>
+          <p class="text-sm text-muted leading-relaxed">Monitor 90+ launchpads including pump.fun, bonk, boop, fourmeme, and meteora. Track new launches, hot tokens, and graduating tokens in real time.</p>
+          <div class="flex flex-wrap gap-1.5 mt-4">
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 text-muted">pump.fun</span>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 text-muted">bonk</span>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 text-muted">meteora</span>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 text-muted">+87 more</span>
+          </div>
+        </div>
+
+        <!-- Feature 4: Guardian Alerts -->
+        <div class="reveal feature-card surface border-glow rounded-2xl p-6 group">
+          <div class="w-11 h-11 rounded-xl bg-teal/10 flex items-center justify-center mb-4 group-hover:bg-teal/20 transition-colors duration-300">
+            <svg class="w-5 h-5 text-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+          </div>
+          <h3 class="font-display font-bold text-lg text-white mb-2">Guardian Alerts</h3>
+          <p class="text-sm text-muted leading-relaxed">9 automated heartbeat tasks monitor your positions 24/7. Whale movements, LP pulls, volume drops, holder concentration shifts. Alerts fire to Telegram instantly.</p>
+          <div class="mt-4 flex items-center gap-2">
+            <span class="w-1.5 h-1.5 rounded-full bg-teal pulse-dot"></span>
+            <span class="text-[11px] font-mono text-teal-mid/70">9 tasks active</span>
+          </div>
+        </div>
+
+        <!-- Feature 5: Auto TP/SL -->
+        <div class="reveal reveal-delay-1 feature-card surface border-glow rounded-2xl p-6 group">
+          <div class="w-11 h-11 rounded-xl bg-teal/10 flex items-center justify-center mb-4 group-hover:bg-teal/20 transition-colors duration-300">
+            <svg class="w-5 h-5 text-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          </div>
+          <h3 class="font-display font-bold text-lg text-white mb-2">Auto TP/SL Risk Management</h3>
+          <p class="text-sm text-muted leading-relaxed">Every trade ships with safety-score-banded take-profit and stop-loss rules. Up to 10 TP/SL rules plus 1 trailing stop, enforced server-side by AVE.</p>
+          <div class="mt-4 font-mono text-[11px] text-muted bg-navy/50 rounded-lg px-3 py-2 space-y-0.5">
+            <div><span class="text-safe">+50%</span> sell 50% &middot; <span class="text-danger">-20%</span> sell 100%</div>
+            <div><span class="text-teal-mid">+10%</span> trailing stop 100%</div>
+          </div>
+        </div>
+
+        <!-- Feature 6: Cross-Chain -->
+        <div class="reveal reveal-delay-2 feature-card surface border-glow rounded-2xl p-6 group">
+          <div class="w-11 h-11 rounded-xl bg-teal/10 flex items-center justify-center mb-4 group-hover:bg-teal/20 transition-colors duration-300">
+            <svg class="w-5 h-5 text-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+          </div>
+          <h3 class="font-display font-bold text-lg text-white mb-2">Cross-Chain Comparison</h3>
+          <p class="text-sm text-muted leading-relaxed">Compare any token's price, liquidity, and safety across Solana, BSC, Ethereum, and Base. Find the best chain for your entry with a single command.</p>
+          <div class="flex gap-3 mt-4">
+            <span class="text-[11px] font-mono text-teal-mid/60">SOL</span>
+            <span class="text-[11px] text-white/10">|</span>
+            <span class="text-[11px] font-mono text-teal-mid/60">BSC</span>
+            <span class="text-[11px] text-white/10">|</span>
+            <span class="text-[11px] font-mono text-teal-mid/60">ETH</span>
+            <span class="text-[11px] text-white/10">|</span>
+            <span class="text-[11px] font-mono text-teal-mid/60">BASE</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ══════════════════════ SAFETY SCORE WIDGET ══════════════════════ -->
+  <section id="safety-check" class="relative py-24 sm:py-32">
+    <!-- Background accent -->
+    <div class="absolute inset-0 pointer-events-none">
+      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[600px] rounded-full" style="background: radial-gradient(ellipse, rgba(29,158,117,0.06) 0%, transparent 70%);"></div>
+    </div>
+
+    <div class="max-w-4xl mx-auto px-6 relative z-10">
+      <div class="text-center mb-12">
+        <span class="reveal font-mono text-xs tracking-[0.3em] text-teal uppercase">Try It Now</span>
+        <h2 class="reveal reveal-delay-1 font-display font-800 text-3xl sm:text-4xl lg:text-5xl text-white mt-3">
+          Live Safety <span class="text-gradient">Score Check</span>
+        </h2>
+        <p class="reveal reveal-delay-2 text-muted mt-4 max-w-lg mx-auto">
+          Paste any token contract address. Get the same composite safety score our bot uses before every trade.
+        </p>
+      </div>
+
+      <!-- Widget Card -->
+      <div class="reveal reveal-delay-2 surface-elevated border-glow glow-teal rounded-2xl p-6 sm:p-8">
+        <!-- Input row -->
+        <div class="flex flex-col sm:flex-row gap-3 mb-2">
+          <input
+            type="text"
+            id="token-address"
+            placeholder="Paste token contract address..."
+            class="flex-1 px-4 py-3 rounded-xl text-sm font-mono text-white placeholder-muted/50"
+          >
+          <select id="chain-select" class="px-4 py-3 rounded-xl text-sm font-mono text-white min-w-[140px]">
+            <option value="solana">Solana</option>
+            <option value="bsc">BSC</option>
+            <option value="eth">Ethereum</option>
+            <option value="base">Base</option>
+          </select>
+          <button
+            id="check-btn"
+            onclick="checkSafety()"
+            class="btn-primary px-6 py-3 rounded-xl font-display font-semibold text-white text-sm whitespace-nowrap flex items-center justify-center gap-2"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            Check Safety
+          </button>
+        </div>
+        <!-- Example tokens -->
+        <div class="flex flex-wrap gap-2 mb-6">
+          <span class="text-[10px] text-muted">Try:</span>
+          <button onclick="fillExample('6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN','solana')" class="text-[10px] font-mono text-teal-mid/60 hover:text-teal-mid transition-colors duration-200 cursor-pointer underline underline-offset-2 decoration-teal/20">TRUMP (Solana)</button>
+          <button onclick="fillExample('0x6982508145454Ce325dDbE47a25d4ec3d2311933','eth')" class="text-[10px] font-mono text-teal-mid/60 hover:text-teal-mid transition-colors duration-200 cursor-pointer underline underline-offset-2 decoration-teal/20">PEPE (ETH)</button>
+        </div>
+
+        <!-- Results area -->
+        <div id="result-area" class="hidden">
+          <div class="border-t border-white/5 pt-6">
+            <!-- Loading state -->
+            <div id="loading-state" class="hidden text-center py-12">
+              <div class="inline-flex items-center gap-3">
+                <svg class="w-5 h-5 text-teal animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                <span class="font-mono text-sm text-muted">Analyzing contract, holders, liquidity...</span>
+              </div>
+            </div>
+
+            <!-- Error state -->
+            <div id="error-state" class="hidden text-center py-8">
+              <div class="text-danger font-mono text-sm" id="error-message"></div>
+            </div>
+
+            <!-- Score display -->
+            <div id="score-display" class="hidden">
+              <div class="flex flex-col sm:flex-row items-center gap-8">
+                <!-- Score ring -->
+                <div class="relative flex-shrink-0">
+                  <svg class="w-36 h-36 -rotate-90" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="6"/>
+                    <circle id="score-ring" cx="50" cy="50" r="40" fill="none" stroke-width="6" stroke-linecap="round"
+                      stroke-dasharray="251" stroke-dashoffset="251"/>
+                  </svg>
+                  <div class="absolute inset-0 flex flex-col items-center justify-center">
+                    <span id="score-number" class="font-display font-900 text-4xl"></span>
+                    <span class="font-mono text-[10px] text-muted tracking-wider">/100</span>
+                  </div>
+                </div>
+
+                <!-- Score details -->
+                <div class="flex-1 w-full">
+                  <div class="flex items-center gap-3 mb-4">
+                    <h3 id="token-name" class="font-display font-bold text-xl text-white"></h3>
+                    <span id="chain-badge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 text-muted uppercase"></span>
+                    <span id="risk-badge" class="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded"></span>
+                  </div>
+
+                  <!-- Factors list -->
+                  <div id="factors-list" class="space-y-2"></div>
+
+                  <!-- CTA after score -->
+                  <div class="mt-6 pt-4 border-t border-white/5 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                    <a href="https://t.me/ChainPilot_bot" target="_blank" rel="noopener" class="btn-primary px-5 py-2 rounded-lg text-sm font-display font-semibold text-white inline-flex items-center gap-2">
+                      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+                      Trade This Token
+                    </a>
+                    <a id="ave-pro-link" href="#" target="_blank" rel="noopener" class="text-sm font-mono text-teal-mid/60 hover:text-teal-mid transition-colors duration-200 underline underline-offset-2 decoration-teal/20">
+                      View on AVE Pro
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Disclaimer -->
+      <p class="text-center text-[10px] text-muted/50 mt-4 font-mono">Not financial advice. Safety scores reflect on-chain data analysis, not investment recommendations.</p>
+    </div>
+  </section>
+
+
+  <!-- ══════════════════════ HOW IT WORKS ══════════════════════ -->
+  <section id="how-it-works" class="relative py-24 sm:py-32">
+    <div class="max-w-5xl mx-auto px-6">
+      <div class="text-center mb-16">
+        <span class="reveal font-mono text-xs tracking-[0.3em] text-teal uppercase">Getting Started</span>
+        <h2 class="reveal reveal-delay-1 font-display font-800 text-3xl sm:text-4xl lg:text-5xl text-white mt-3">
+          Three Steps to <span class="text-gradient">Safer Trading</span>
+        </h2>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
+        <!-- Connector line (desktop only) -->
+        <div class="hidden md:block absolute top-16 left-[calc(16.67%+20px)] right-[calc(16.67%+20px)] h-px bg-gradient-to-r from-teal/30 via-teal/10 to-teal/30"></div>
+
+        <!-- Step 1 -->
+        <div class="reveal text-center">
+          <div class="relative inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-teal/10 border border-teal/20 mb-5">
+            <span class="font-display font-900 text-xl text-teal">01</span>
+          </div>
+          <h3 class="font-display font-bold text-lg text-white mb-2">Open Telegram</h3>
+          <p class="text-sm text-muted leading-relaxed">Start a conversation with ChainPilot. No sign-up, no wallet connection, no setup. Just chat.</p>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="reveal reveal-delay-1 text-center">
+          <div class="relative inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-teal/10 border border-teal/20 mb-5">
+            <span class="font-display font-900 text-xl text-teal">02</span>
+          </div>
+          <h3 class="font-display font-bold text-lg text-white mb-2">Discover & Validate</h3>
+          <p class="text-sm text-muted leading-relaxed">Ask about any token in plain English. Get safety scores, holder analysis, liquidity data, and risk factors instantly.</p>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="reveal reveal-delay-2 text-center">
+          <div class="relative inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-teal/10 border border-teal/20 mb-5">
+            <span class="font-display font-900 text-xl text-teal">03</span>
+          </div>
+          <h3 class="font-display font-bold text-lg text-white mb-2">Trade & Guard</h3>
+          <p class="text-sm text-muted leading-relaxed">Execute trades with automatic TP/SL protection. Guardian monitors your positions 24/7 and alerts you to any changes.</p>
+        </div>
+      </div>
+
+      <!-- Example conversation mockup -->
+      <div class="reveal mt-16 max-w-lg mx-auto surface border-glow rounded-2xl overflow-hidden">
+        <!-- Chat header -->
+        <div class="flex items-center gap-3 px-5 py-3 border-b border-white/5">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" class="w-7 h-7">
+            <circle cx="200" cy="175" r="95" fill="none" stroke="#1D9E75" stroke-width="3"/>
+            <polygon points="200,90 188,170 200,162 212,170" fill="#1D9E75"/>
+            <polygon points="200,260 188,180 200,188 212,180" fill="#888780" opacity="0.4"/>
+            <circle cx="200" cy="175" r="6" fill="#1D9E75"/>
+            <circle cx="200" cy="175" r="3" fill="#0A1628"/>
+          </svg>
+          <div>
+            <div class="font-display font-bold text-sm text-white">ChainPilot</div>
+            <div class="text-[10px] text-teal-mid flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-teal pulse-dot inline-block"></span> Online</div>
+          </div>
+        </div>
+        <!-- Chat messages -->
+        <div class="px-5 py-4 space-y-3">
+          <!-- User message -->
+          <div class="flex justify-end">
+            <div class="bg-teal/15 rounded-2xl rounded-br-md px-4 py-2 max-w-[80%]">
+              <p class="text-sm text-white">Buy 0.002 SOL of TRUMP</p>
+            </div>
+          </div>
+          <!-- Bot reply -->
+          <div class="flex justify-start">
+            <div class="bg-white/5 rounded-2xl rounded-bl-md px-4 py-3 max-w-[85%]">
+              <p class="text-sm text-white/90 font-mono leading-relaxed">
+                <span class="text-warning font-bold">SAFETY REPORT: TRUMP (Solana)</span><br>
+                Score: <span class="text-warning font-bold">55/100</span> &middot; MODERATE RISK<br><br>
+                <span class="text-safe">PASS</span> Honeypot Check<br>
+                <span class="text-safe">PASS</span> Buy/Sell Tax: 0%<br>
+                <span class="text-danger">FAIL</span> LP Lock: 0%<br>
+                <span class="text-danger">FAIL</span> Top 10: 90.1% (&gt;80%)<br><br>
+                <span class="text-muted text-xs">Reply YES to proceed, or YES I UNDERSTAND THE RISK for high-risk tokens.</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ══════════════════════ SUPPORTED CHAINS ══════════════════════ -->
+  <section class="relative py-20">
+    <div class="max-w-5xl mx-auto px-6">
+      <div class="text-center mb-12">
+        <span class="reveal font-mono text-xs tracking-[0.3em] text-teal uppercase">Multi-Chain</span>
+        <h2 class="reveal reveal-delay-1 font-display font-800 text-3xl sm:text-4xl text-white mt-3">
+          Trade Across <span class="text-gradient">4 Chains</span>
+        </h2>
+      </div>
+
+      <div class="reveal reveal-delay-2 grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <!-- Solana -->
+        <div class="surface border-glow rounded-2xl p-6 text-center feature-card group">
+          <div class="w-14 h-14 rounded-full bg-gradient-to-br from-[#9945FF]/20 to-[#14F195]/20 border border-[#9945FF]/20 flex items-center justify-center mx-auto mb-3 group-hover:border-[#9945FF]/40 transition-colors duration-300">
+            <span class="font-display font-bold text-lg text-white">S</span>
+          </div>
+          <h3 class="font-display font-bold text-white">Solana</h3>
+          <p class="text-xs text-muted mt-1 font-mono">SOL &middot; SPL Tokens</p>
+        </div>
+        <!-- BSC -->
+        <div class="surface border-glow rounded-2xl p-6 text-center feature-card group">
+          <div class="w-14 h-14 rounded-full bg-[#F3BA2F]/10 border border-[#F3BA2F]/20 flex items-center justify-center mx-auto mb-3 group-hover:border-[#F3BA2F]/40 transition-colors duration-300">
+            <span class="font-display font-bold text-lg text-white">B</span>
+          </div>
+          <h3 class="font-display font-bold text-white">BSC</h3>
+          <p class="text-xs text-muted mt-1 font-mono">BNB &middot; BEP-20</p>
+        </div>
+        <!-- Ethereum -->
+        <div class="surface border-glow rounded-2xl p-6 text-center feature-card group">
+          <div class="w-14 h-14 rounded-full bg-[#627EEA]/10 border border-[#627EEA]/20 flex items-center justify-center mx-auto mb-3 group-hover:border-[#627EEA]/40 transition-colors duration-300">
+            <span class="font-display font-bold text-lg text-white">E</span>
+          </div>
+          <h3 class="font-display font-bold text-white">Ethereum</h3>
+          <p class="text-xs text-muted mt-1 font-mono">ETH &middot; ERC-20</p>
+        </div>
+        <!-- Base -->
+        <div class="surface border-glow rounded-2xl p-6 text-center feature-card group">
+          <div class="w-14 h-14 rounded-full bg-[#0052FF]/10 border border-[#0052FF]/20 flex items-center justify-center mx-auto mb-3 group-hover:border-[#0052FF]/40 transition-colors duration-300">
+            <span class="font-display font-bold text-lg text-white">B</span>
+          </div>
+          <h3 class="font-display font-bold text-white">Base</h3>
+          <p class="text-xs text-muted mt-1 font-mono">ETH &middot; ERC-20</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ══════════════════════ CTA BANNER ══════════════════════ -->
+  <section class="relative py-24">
+    <div class="max-w-3xl mx-auto px-6">
+      <div class="reveal surface-elevated border-glow glow-teal-strong rounded-3xl p-10 sm:p-14 text-center relative overflow-hidden">
+        <!-- Background compass -->
+        <div class="absolute -right-16 -top-16 opacity-[0.04] pointer-events-none">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" class="w-64 h-64">
+            <circle cx="200" cy="175" r="95" fill="none" stroke="#1D9E75" stroke-width="2"/>
+            <polygon points="200,90 188,170 200,162 212,170" fill="#1D9E75"/>
+            <polygon points="200,260 188,180 200,188 212,180" fill="#888780"/>
+            <circle cx="200" cy="175" r="6" fill="#1D9E75"/>
+          </svg>
+        </div>
+
+        <h2 class="font-display font-900 text-3xl sm:text-4xl text-white mb-4">
+          Start Trading Safer
+        </h2>
+        <p class="text-muted text-base mb-8 max-w-md mx-auto">
+          Join ChainPilot on Telegram. Every trade safety-checked. Every position monitored. Every alert instant.
+        </p>
+        <a href="https://t.me/ChainPilot_bot" target="_blank" rel="noopener" class="btn-primary px-10 py-4 rounded-xl font-display font-bold text-white text-lg inline-flex items-center gap-3">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+          Launch on Telegram
+        </a>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ══════════════════════ FOOTER ══════════════════════ -->
+  <footer class="border-t border-white/5 py-12">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+        <!-- Logo + tagline -->
+        <div class="flex items-center gap-3">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" class="w-8 h-8">
+            <circle cx="200" cy="175" r="95" fill="none" stroke="#1D9E75" stroke-width="3"/>
+            <rect x="155" y="168" width="36" height="14" rx="7" fill="none" stroke="#1D9E75" stroke-width="2.5"/>
+            <rect x="209" y="168" width="36" height="14" rx="7" fill="none" stroke="#1D9E75" stroke-width="2.5"/>
+            <line x1="191" y1="175" x2="209" y2="175" stroke="#1D9E75" stroke-width="2.5" stroke-linecap="round"/>
+            <polygon points="200,90 188,170 200,162 212,170" fill="#1D9E75"/>
+            <polygon points="200,260 188,180 200,188 212,180" fill="#888780" opacity="0.4"/>
+            <circle cx="200" cy="175" r="6" fill="#1D9E75"/>
+            <circle cx="200" cy="175" r="3" fill="#0A1628"/>
+          </svg>
+          <div>
+            <span class="font-display font-bold text-sm text-white tracking-wider">CHAINPILOT</span>
+            <p class="text-[10px] text-muted font-mono tracking-wider">DISCOVER &middot; VALIDATE &middot; TRADE &middot; GUARD</p>
+          </div>
+        </div>
+
+        <!-- Links -->
+        <div class="flex items-center gap-6">
+          <a href="https://t.me/ChainPilot_bot" target="_blank" rel="noopener" class="text-sm text-muted hover:text-teal-mid transition-colors duration-200">Telegram</a>
+          <a href="https://github.com/chainpilot" target="_blank" rel="noopener" class="text-sm text-muted hover:text-teal-mid transition-colors duration-200">GitHub</a>
+          <a href="https://pro.ave.ai" target="_blank" rel="noopener" class="text-sm text-muted hover:text-teal-mid transition-colors duration-200">AVE Pro</a>
+        </div>
+
+        <!-- Hackathon badge -->
+        <div class="text-center md:text-right">
+          <div class="text-[10px] font-mono text-muted/50 tracking-wider">BUILT FOR</div>
+          <div class="text-xs font-display font-semibold text-teal-mid/60">AVE Claw Hackathon 2026</div>
+        </div>
+      </div>
+
+      <div class="mt-8 pt-6 border-t border-white/5 text-center">
+        <p class="text-[10px] text-muted/40 font-mono">Not financial advice. ChainPilot provides data analysis and safety scoring, not investment recommendations. Always do your own research.</p>
+      </div>
+    </div>
+  </footer>
+
+
+  <!-- ══════════════════════ SCRIPTS ══════════════════════ -->
+  <script>
+    // ── Scroll reveal ──
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    // ── Fill example token ──
+    function fillExample(address, chain) {
+      document.getElementById('token-address').value = address;
+      document.getElementById('chain-select').value = chain;
+      checkSafety();
+    }
+
+    // ── Safety score check ──
+    async function checkSafety() {
+      const address = document.getElementById('token-address').value.trim();
+      const chain = document.getElementById('chain-select').value;
+
+      if (!address) {
+        document.getElementById('token-address').focus();
+        return;
+      }
+
+      const resultArea = document.getElementById('result-area');
+      const loadingState = document.getElementById('loading-state');
+      const errorState = document.getElementById('error-state');
+      const scoreDisplay = document.getElementById('score-display');
+      const checkBtn = document.getElementById('check-btn');
+
+      // Show loading
+      resultArea.classList.remove('hidden');
+      loadingState.classList.remove('hidden');
+      errorState.classList.add('hidden');
+      scoreDisplay.classList.add('hidden');
+      checkBtn.disabled = true;
+      checkBtn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Checking...';
+
+      try {
+        const res = await fetch('/api/safety-score', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address, chain }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: 'Server error' }));
+          throw new Error(err.error || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        renderScore(data);
+      } catch (err) {
+        loadingState.classList.add('hidden');
+        errorState.classList.remove('hidden');
+        document.getElementById('error-message').textContent = err.message || 'Failed to fetch safety score. Please try again.';
+      } finally {
+        checkBtn.disabled = false;
+        checkBtn.innerHTML = '<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg> Check Safety';
+      }
+    }
+
+    // ── Render score result ──
+    function renderScore(data) {
+      const loadingState = document.getElementById('loading-state');
+      const scoreDisplay = document.getElementById('score-display');
+      loadingState.classList.add('hidden');
+      scoreDisplay.classList.remove('hidden');
+
+      const score = data.score;
+      const riskLevel = data.riskLevel;
+
+      // Determine color class
+      let colorClass, ringClass, badgeBg;
+      if (score >= 70) {
+        colorClass = 'score-safe';
+        ringClass = 'ring-safe';
+        badgeBg = 'bg-safe/15 text-safe';
+      } else if (score >= 40) {
+        colorClass = 'score-moderate';
+        ringClass = 'ring-moderate';
+        badgeBg = 'bg-warning/15 text-warning';
+      } else {
+        colorClass = 'score-danger';
+        ringClass = 'ring-danger';
+        badgeBg = 'bg-danger/15 text-danger';
+      }
+
+      // Animate score ring
+      const ring = document.getElementById('score-ring');
+      const circumference = 251;
+      const offset = circumference - (score / 100) * circumference;
+      ring.className.baseVal = ringClass;
+      ring.style.strokeDashoffset = circumference;
+      ring.classList.remove('score-ring-animated');
+      void ring.offsetWidth; // force reflow
+      ring.style.strokeDashoffset = offset;
+      ring.classList.add('score-ring-animated');
+
+      // Score number
+      const scoreNum = document.getElementById('score-number');
+      scoreNum.className = `font-display font-900 text-4xl ${colorClass}`;
+      animateNumber(scoreNum, 0, score, 1200);
+
+      // Token name + badges
+      document.getElementById('token-name').textContent = data.tokenName || 'Unknown Token';
+      document.getElementById('chain-badge').textContent = data.chain;
+      const riskBadge = document.getElementById('risk-badge');
+      riskBadge.textContent = riskLevel;
+      riskBadge.className = `text-[10px] font-mono font-bold px-2.5 py-0.5 rounded ${badgeBg}`;
+
+      // AVE Pro link
+      document.getElementById('ave-pro-link').href = `https://pro.ave.ai/token/${data.address}-${data.chain}`;
+
+      // Factors
+      const factorsList = document.getElementById('factors-list');
+      factorsList.innerHTML = '';
+      if (data.factors && data.factors.length) {
+        data.factors.forEach(f => {
+          const statusColor = f.status === 'PASS' ? 'text-safe' : f.status === 'WARN' ? 'text-warning' : 'text-danger';
+          const el = document.createElement('div');
+          el.className = 'flex items-start gap-2 text-sm';
+          el.innerHTML = `
+            <span class="font-mono text-[11px] font-bold ${statusColor} w-10 flex-shrink-0 mt-0.5">${f.status}</span>
+            <span class="text-white/70 text-[13px]">${f.name}${f.detail ? ': <span class="text-muted">' + f.detail + '</span>' : ''}</span>
+          `;
+          factorsList.appendChild(el);
+        });
+      }
+    }
+
+    // ── Animate number ──
+    function animateNumber(el, from, to, duration) {
+      const start = performance.now();
+      function step(now) {
+        const progress = Math.min((now - start) / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        el.textContent = Math.round(from + (to - from) * eased);
+        if (progress < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }
+
+    // ── Mobile menu close on link click ──
+    document.querySelectorAll('#mobile-menu a').forEach(a => {
+      a.addEventListener('click', () => {
+        document.getElementById('mobile-menu').classList.add('hidden');
+      });
+    });
+
+    // ── Nav background on scroll ──
+    const nav = document.querySelector('nav');
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 20) {
+        nav.style.borderBottomColor = 'rgba(29,158,117,0.1)';
+      } else {
+        nav.style.borderBottomColor = 'rgba(255,255,255,0.05)';
+      }
+    }, { passive: true });
+  </script>
+
+</body>
+</html>
