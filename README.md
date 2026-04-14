@@ -353,7 +353,7 @@ See [AGENTS.md](skill/AGENTS.md) for the complete security rules.
 
 **AVE Claw Hackathon 2026** | April 2026
 
-**Team:** OoJae
+**Team:** Azura
 
 ---
 
