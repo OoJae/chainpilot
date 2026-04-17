@@ -6,7 +6,7 @@
 
 Built for the **AVE Claw Hackathon 2026** | Powered by [OpenClaw](https://openclaw.ai) + [AVE Cloud](https://ave.ai)
 
-🌐 **Website**: [chainpilot.site](http://chainpilot.site/) | 🤖 **Telegram Bot**: [@ChainPilot_bot](https://t.me/ChainPilot_bot)
+🌐 **Website**: [chainpilot.site](http://43.153.109.3/) | 🤖 **Telegram Bot**: [@ChainPilot_bot](https://t.me/ChainPilot_bot)
 
 ---
 
